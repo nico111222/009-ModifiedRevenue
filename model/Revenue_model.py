@@ -20,7 +20,7 @@ class Depart_ModifiedRevenue(Base):
 
     # --- Restricción única Year + Month ---
     __table_args__ = (
-        UniqueConstraint('Year', 'Month', name='UQ_Year_Month'),
+        UniqueConstraint('Year', 'Month','Customer', name='UQ_Year_Month'),
     )
 
 
