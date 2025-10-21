@@ -1,0 +1,2 @@
+Instale el env de requeriments para que pueda correr
+se añadio la tabla que se creo en el cod
