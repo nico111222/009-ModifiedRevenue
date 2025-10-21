@@ -14,6 +14,7 @@ class RevenueBase(BaseModel):
     Fob_per_unit: float
     Comment: Optional[str] = None
     Goal: Optional[float] = None
+    Customer: Optional[str] = None
     StatusRevenue: Optional[int] = 1
 
 
@@ -31,6 +32,7 @@ class RevenueUpdate(BaseModel):
     Fob_per_unit: Optional[float] = None
     Comment: Optional[str] = None
     Goal: Optional[float] = None
+    Customer: Optional[str] = None
     StatusRevenue: Optional[int] = None
     LastUpdate: Optional[datetime] = None
 
@@ -58,6 +60,7 @@ class RevenueLogBase(BaseModel):
     Fob_per_unit: float
     Comment: Optional[str] = None
     Goal: Optional[float] = None
+    Customer: Optional[str] = None
     StatusRevenue: int
     CreateDate: Optional[datetime] = None
     LastUpdate: Optional[datetime] = None

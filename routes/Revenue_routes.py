@@ -35,15 +35,58 @@ def get_revenue_by_id(id: int, db: Session = Depends(get_db)):
 # ============================================================
 @router.post("/create_revenue", response_model=Revenue)
 def create_revenue(rev: RevenueCreate, db: Session = Depends(get_db)):
-    # Validar duplicado Year+Month
+    # Verificar si ya existe un registro con el mismo Year, Month, Customer
     exists = db.query(Depart_ModifiedRevenue).filter(
         Depart_ModifiedRevenue.Year == rev.Year,
-        Depart_ModifiedRevenue.Month == rev.Month
+        Depart_ModifiedRevenue.Month == rev.Month,
+        Depart_ModifiedRevenue.Customer == rev.Customer
     ).first()
-    if exists:
-        raise HTTPException(status_code=400, detail=f"Ya existe un registro para Year={rev.Year} y Month={rev.Month}")
 
-    # Crear registro principal
+    if exists:
+        if exists.StatusRevenue == 1:
+            # Si el StatusRevenue es 1, ya existe un registro activo
+            raise HTTPException(status_code=400, detail=f"Ya existe un registro activo para Year={rev.Year} y Month={rev.Month}")
+        
+        elif exists.StatusRevenue == 0:
+            # Si el StatusRevenue es 0, lo activamos cambiando a 1
+            exists.StatusRevenue = 1
+            exists.LastUpdate = datetime.now()  # Actualizamos la fecha de la última actualización
+
+            try:
+                db.commit()  # Intentamos guardar los cambios
+                db.refresh(exists)  # Refrescamos el objeto para obtener los cambios
+
+                # Guardar log tipo UPDATE para la activación
+                log = Depart_ModifiedRevenue_Log(
+                    IDRevenue=exists.IDRevenue,
+                    Year=exists.Year,
+                    Month=exists.Month,
+                    Units=exists.Units,
+                    Revenue=exists.Revenue,
+                    Fob_per_unit=exists.Fob_per_unit,
+                    Comment=exists.Comment,
+                    Goal=exists.Goal,
+                    Customer=exists.Customer,
+                    StatusRevenue=exists.StatusRevenue,
+                    CreateDate=exists.CreateDate,
+                    LastUpdate=exists.LastUpdate,
+                    ActionType="UPDATE",
+                    LogDate=datetime.now()
+                )
+                db.add(log)
+                db.commit()  # Guardamos el log
+
+                return exists  # Devolvemos el registro actualizado
+
+            except Exception as e:
+                db.rollback()  # En caso de error, deshacemos los cambios
+                raise HTTPException(status_code=500, detail=f"Error al activar el registro: {str(e)}")
+
+        else:
+            # Si StatusRevenue es otro valor (por ejemplo, 2, 3...), no hacemos nada
+            raise HTTPException(status_code=400, detail="El registro tiene un estado no válido.")
+
+    # Si no existe el registro, creamos uno nuevo
     new_rev = Depart_ModifiedRevenue(
         Year=rev.Year,
         Month=rev.Month,
@@ -52,6 +95,7 @@ def create_revenue(rev: RevenueCreate, db: Session = Depends(get_db)):
         Fob_per_unit=rev.Fob_per_unit,
         Comment=rev.Comment,
         Goal=rev.Goal,
+        Customer=rev.Customer,
         StatusRevenue=rev.StatusRevenue,
         CreateDate=datetime.now(),
         LastUpdate=datetime.now()
@@ -60,7 +104,7 @@ def create_revenue(rev: RevenueCreate, db: Session = Depends(get_db)):
     try:
         db.add(new_rev)
         db.commit()
-        db.refresh(new_rev)
+        db.refresh(new_rev)  # Refrescamos el objeto para obtener el nuevo ID
 
         # Guardar log tipo INSERT
         log = Depart_ModifiedRevenue_Log(
@@ -72,6 +116,7 @@ def create_revenue(rev: RevenueCreate, db: Session = Depends(get_db)):
             Fob_per_unit=new_rev.Fob_per_unit,
             Comment=new_rev.Comment,
             Goal=new_rev.Goal,
+            Customer=new_rev.Customer,
             StatusRevenue=new_rev.StatusRevenue,
             CreateDate=new_rev.CreateDate,
             LastUpdate=new_rev.LastUpdate,
@@ -79,7 +124,7 @@ def create_revenue(rev: RevenueCreate, db: Session = Depends(get_db)):
             LogDate=datetime.now()
         )
         db.add(log)
-        db.commit()
+        db.commit()  # Guardamos el log
 
         return new_rev
 
@@ -88,7 +133,8 @@ def create_revenue(rev: RevenueCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Error de integridad (posible duplicado Year+Month).")
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Error al crear el nuevo registro: {str(e)}")
+
 
 
 # ============================================================
@@ -131,6 +177,7 @@ def update_revenue(id: int, rev: RevenueUpdate, db: Session = Depends(get_db)):
             Fob_per_unit=db_rev.Fob_per_unit,
             Comment=db_rev.Comment,
             Goal=db_rev.Goal,
+            Customer=db_rev.Customer,
             StatusRevenue=db_rev.StatusRevenue,
             CreateDate=db_rev.CreateDate,
             LastUpdate=db_rev.LastUpdate,
@@ -176,6 +223,7 @@ def delete_revenue(id: int, db: Session = Depends(get_db)):
             Fob_per_unit=db_rev.Fob_per_unit,
             Comment=db_rev.Comment,
             Goal=db_rev.Goal,
+            Customer=db_rev.Customer,
             StatusRevenue=0,
             CreateDate=db_rev.CreateDate,
             LastUpdate=db_rev.LastUpdate,
